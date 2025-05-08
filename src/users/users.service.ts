@@ -24,7 +24,7 @@ export class UsersService {
     private configService: ConfigService,
   ) {}
   create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+    return 'This action adds a new user ';
   }
 
   @Public()
