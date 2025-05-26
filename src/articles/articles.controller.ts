@@ -31,9 +31,23 @@ export class ArticlesController {
     @Query('current') currentPage: string,
     @Query('pageSize') limit: string,
     @Query() qs: string,
+  ) {
+    return this.articlesService.findAll(+currentPage, +limit, qs);
+  }
+  @Get('/notifications')
+  @ResponseMessage('get all articles')
+  findAllNotifications(
+    @Query('current') currentPage: string,
+    @Query('pageSize') limit: string,
+    @Query() qs: string,
     @User() user: IUser,
   ) {
-    return this.articlesService.findAll(+currentPage, +limit, qs, user);
+    return this.articlesService.findAllNotifications(
+      +currentPage,
+      +limit,
+      qs,
+      user,
+    );
   }
 
   @Get(':id')

@@ -33,7 +33,12 @@ export class ArticlesService {
     return { message: 'Article created successfully', data: article };
   }
 
-  async findAll(currentPage: number, limit: number, qs: string, user: IUser) {
+  async findAllNotifications(
+    currentPage: number,
+    limit: number,
+    qs: string,
+    user: IUser,
+  ) {
     const { filter, sort, projection, population } = aqp(qs);
     delete filter.current;
     delete filter.pageSize;
@@ -51,6 +56,52 @@ export class ArticlesService {
         console.error('Invalid createdSince format:', filter.createdSince);
       }
       delete filter.createdSince;
+    }
+
+    // Ensure only non-deleted articles
+    filter.isDeleted = filter.isDeleted ?? false;
+
+    let offset = (currentPage - 1) * limit;
+    let defaultLimit = limit || 10;
+
+    const totalItems = await this.articleModel.countDocuments(filter);
+    const totalPages = Math.ceil(totalItems / defaultLimit);
+
+    const result = await this.articleModel
+      .find(filter)
+      .skip(offset)
+      .limit(defaultLimit)
+      .sort(sort as any)
+      .select(projection)
+      .populate(population || { path: 'author', select: '_id name email' })
+      .exec();
+
+    return {
+      meta: {
+        current: currentPage || 1,
+        pageSize: defaultLimit,
+        pages: totalPages,
+        total: totalItems,
+      },
+      result,
+    };
+  }
+  async findAll(currentPage: number, limit: number, qs: string) {
+    const { filter, sort, projection, population } = aqp(qs);
+    delete filter.current;
+    delete filter.pageSize;
+
+    // Log for debugging
+    console.log('Query params:', qs);
+    console.log('Parsed filter:', filter, 'Sort:', sort);
+
+    // Handle search query
+    if (filter.q) {
+      filter.$or = [
+        { title: { $regex: filter.q, $options: 'i' } },
+        { content: { $regex: filter.q, $options: 'i' } },
+      ];
+      delete filter.q;
     }
 
     // Ensure only non-deleted articles
