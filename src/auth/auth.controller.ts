@@ -54,6 +54,7 @@ export class AuthController {
   forgotPassword(@Body() forgotPassword: ForgotPassword) {
     return this.authService.forgotPassword(forgotPassword);
   }
+
   @Public()
   @UseGuards(LocalAuthGuard)
   @UseGuards(ThrottlerGuard)

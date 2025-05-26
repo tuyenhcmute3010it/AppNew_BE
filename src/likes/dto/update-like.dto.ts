@@ -1,4 +1,8 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateLikeDto } from './create-like.dto';
+// update-like.dto.ts
+import { IsOptional, IsIn } from 'class-validator';
 
-export class UpdateLikeDto extends PartialType(CreateLikeDto) {}
+export class UpdateLikeDto {
+  @IsOptional()
+  @IsIn([1, -1])
+  quantity?: number;
+}

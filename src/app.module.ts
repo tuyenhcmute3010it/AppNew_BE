@@ -13,6 +13,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { Throttle, ThrottlerModule } from '@nestjs/throttler';
 
 import { LikesModule } from './likes/likes.module';
+import { ArticlesModule } from './articles/articles.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -39,6 +40,8 @@ import { LikesModule } from './likes/likes.module';
     MailModule,
 
     LikesModule,
+
+    ArticlesModule,
   ],
   controllers: [AppController],
   providers: [

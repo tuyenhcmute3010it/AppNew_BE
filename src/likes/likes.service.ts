@@ -3,13 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateLikeDto } from './dto/create-like.dto';
-import { UpdateLikeDto } from './dto/update-like.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Like, LikeDocument } from './schemas/like.schema';
 import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import aqp from 'api-query-params';
 import { IUser } from 'src/users/users.interface';
+import { CreateLikeDto } from './dto/create-like.dto';
+import { UpdateLikeDto } from './dto/update-like.dto';
 
 @Injectable()
 export class LikesService {
@@ -19,46 +19,34 @@ export class LikesService {
   ) {}
 
   async create(createLikeDto: CreateLikeDto, user: IUser) {
-    const { restaurant, quantity } = createLikeDto;
+    const { article, quantity } = createLikeDto;
 
-    // Check if a like exists for the user and restaurant
     let like = await this.likeModel.findOne({
-      restaurant,
+      article,
       user: user._id,
     });
 
     if (!like) {
-      // Create new like with quantity: 1 (ignore provided quantity for new likes)
       like = await this.likeModel.create({
-        restaurant,
+        article,
         user: user._id,
-        quantity: 1,
+        quantity,
       });
       return { message: 'Like created successfully', data: like };
     } else {
-      // Update existing like based on current quantity and requested quantity
-      if (like.quantity === 1 && quantity === -1) {
-        // Toggle from like to dislike
+      if (like.quantity === quantity) {
+        // Remove like/dislike if same quantity
+        await this.likeModel.deleteOne({ _id: like._id });
+        return { message: 'Like removed successfully', data: null };
+      } else {
+        // Toggle like to dislike or vice versa
         like = await this.likeModel.findByIdAndUpdate(
           like._id,
-          { quantity: -1, updatedAt: new Date() },
+          { quantity, updatedAt: new Date() },
           { new: true },
         );
-      } else if (like.quantity === -1 && quantity === 1) {
-        // Toggle from dislike to like
-        like = await this.likeModel.findByIdAndUpdate(
-          like._id,
-          { quantity: 1, updatedAt: new Date() },
-          { new: true },
-        );
+        return { message: 'Like updated successfully', data: like };
       }
-      // else {
-      //   // No change needed (e.g., already liked and requesting like)
-      //   throw new BadRequestException(
-      //     `Restaurant is already ${like.quantity === 1 ? 'liked' : 'disliked'}`,
-      //   );
-      // }
-      return { message: 'Like updated successfully', data: like };
     }
   }
 
@@ -67,8 +55,15 @@ export class LikesService {
     delete filter.current;
     delete filter.pageSize;
 
-    // Filter by authenticated user
     filter.user = user._id;
+
+    // Ensure article filter is applied if provided
+    // if (qs.includes('article')) {
+    //   const articleId = new URLSearchParams(qs).get('article');
+    //   if (articleId) {
+    //     filter.article = articleId;
+    //   }
+    // }
 
     let offset = (currentPage - 1) * limit;
     let defaultLimit = limit ? limit : 10;
@@ -82,46 +77,49 @@ export class LikesService {
       .sort(sort as any)
       .select(projection)
       .populate({
-        path: 'restaurant',
-        select: '_id name image', // Include fields needed by frontend
+        path: 'article',
+        select: '_id title thumbnail',
       })
       .exec();
 
     return {
       meta: {
-        current: currentPage,
-        pageSize: limit,
+        current: currentPage || 1,
+        pageSize: defaultLimit,
         pages: totalPages,
         total: totalItems,
       },
-      result, // Array of likes with populated restaurant
+      result,
     };
   }
-  async findOneByRestaurant(restaurantId: string, user: IUser) {
-    const like = await this.likeModel.findOne({
-      restaurant: restaurantId,
-      user: user._id,
-    });
-    if (!like) {
-      return { message: 'No like found', data: null };
-    }
-    return { message: 'Like found', data: like };
+  async findOneByArticle(articleId: string, user: IUser) {
+    const like = await this.likeModel
+      .findOne({
+        article: articleId,
+        user: user._id,
+      })
+      .populate({
+        path: 'article',
+        select: '_id title thumbnail',
+      });
+    return { message: 'Like found', data: like || null };
   }
 
-  // Optional: Keep original findOne if needed for like ID
-  async findOne(id: string) {
-    const like = await this.likeModel.findById(id);
+  async update(id: string, updateLikeDto: UpdateLikeDto) {
+    const like = await this.likeModel.findByIdAndUpdate(id, updateLikeDto, {
+      new: true,
+    });
     if (!like) {
       throw new NotFoundException('Like not found');
     }
-    return { message: 'Like found', data: like };
+    return { message: 'Like updated successfully', data: like };
   }
 
-  update(id: number, updateLikeDto: UpdateLikeDto) {
-    return `This action updates a #${id} like`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} like`;
+  async remove(id: string) {
+    const like = await this.likeModel.findByIdAndDelete(id);
+    if (!like) {
+      throw new NotFoundException('Like not found');
+    }
+    return { message: 'Like removed successfully' };
   }
 }
