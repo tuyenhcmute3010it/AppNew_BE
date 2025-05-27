@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Get, Injectable, Param } from '@nestjs/common';
 import {
   CreateUserDto,
   ForgotPassword,
@@ -13,9 +13,11 @@ import { SoftDeleteModel } from 'soft-delete-plugin-mongoose';
 import { compareSync, genSaltSync, hashSync } from 'bcryptjs';
 import { codeVerify } from 'src/utils/utils';
 import { ConfigService } from '@nestjs/config';
-import { Public } from 'src/decorator/customize';
+import { Public, ResponseMessage } from 'src/decorator/customize';
 import { IUser } from './users.interface';
 import { UpdateUserDto } from './dto/update-user.dto';
+import aqp from 'api-query-params';
+import mongoose from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -27,13 +29,45 @@ export class UsersService {
     return 'This action adds a new user';
   }
 
-  @Public()
-  findAll() {
-    return this.userModel.find();
-  }
+  // @Public()
+  // findAll() {
+  //   return this.userModel.find();
+  // }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findAll(currentPage: number, limit: number, qs: string) {
+    const { filter, sort, projection, population } = aqp(qs);
+    delete filter.current;
+    delete filter.pageSize;
+    let offset = (+currentPage - 1) * +limit;
+    let defaultLimit = +limit ? +limit : 10;
+    const totalItems = (await this.userModel.find(filter)).length;
+    const totalPages = Math.ceil(totalItems / defaultLimit);
+    const result = await this.userModel
+      .find(filter)
+      .select('-password')
+      .skip(offset)
+      .limit(defaultLimit)
+      .sort(sort as any)
+      .populate(population)
+      .exec();
+    return {
+      meta: {
+        current: currentPage, //trang hiện tại
+        pageSize: limit, //số lượng bản ghi đã lấy
+        pages: totalPages, //tổng số trang với điều kiện query
+        total: totalItems, // tổng số phần tử (số bản ghi)
+      },
+      result, //kết quả query
+    };
+  }
+  async findOne(id: string) {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return 'Not Found User';
+    }
+
+    // Exclude the password field using `.select()`
+    const user = await this.userModel.findOne({ _id: id }).select('-password');
+    return user;
   }
 
   async update(updateUserDto: UpdateUserDto) {
@@ -193,4 +227,14 @@ export class UsersService {
       updateResult,
     };
   }
+  updateUserToken = async (refreshToken: string, _id: string) => {
+    return await this.userModel.updateOne(
+      {
+        _id,
+      },
+      {
+        refreshToken,
+      },
+    );
+  };
 }

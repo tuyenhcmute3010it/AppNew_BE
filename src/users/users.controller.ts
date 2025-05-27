@@ -6,6 +6,8 @@ import {
   Patch,
   Param,
   Delete,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdatePassword } from './dto/create-user.dto';
@@ -29,17 +31,26 @@ export class UsersController {
     return this.usersService.updatePassword(updatePassword, user);
   }
 
+  // @Get()
+  // findAll() {
+  //   return this.usersService.findAll();
+  // }
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @ResponseMessage('get all articles')
+  findAll(
+    @Query('current') currentPage: string,
+    @Query('pageSize') limit: string,
+    @Query() qs: string,
+  ) {
+    return this.usersService.findAll(+currentPage, +limit, qs);
   }
-
   @Get(':id')
+  @ResponseMessage('Get a user')
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+    return this.usersService.findOne(id);
   }
 
-  @Patch()
+  @Put()
   @ResponseMessage('Update a user')
   update(@Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(updateUserDto);

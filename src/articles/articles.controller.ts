@@ -8,6 +8,7 @@ import {
   Param,
   Delete,
   Query,
+  Put,
 } from '@nestjs/common';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -56,7 +57,7 @@ export class ArticlesController {
     return this.articlesService.findOne(id, user);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ResponseMessage('update article')
   update(
     @Param('id') id: string,

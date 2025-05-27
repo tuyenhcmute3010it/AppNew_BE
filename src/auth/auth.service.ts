@@ -13,12 +13,14 @@ import { MailService } from 'src/mail/mail.service';
 import { IUser } from 'src/users/users.interface';
 import { JwtService } from '@nestjs/jwt';
 import { Response } from 'express';
-
+import { ConfigService } from '@nestjs/config';
+import ms from 'ms';
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private mailService: MailService,
+    private configService: ConfigService,
     private jwtService: JwtService,
     @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
   ) {}
@@ -69,16 +71,17 @@ export class AuthService {
       _id,
       name,
       email,
+      role: user.role || 'User', // Include role
     };
-    // const refreshToken = this.createRefreshToken(payload);
+    const refreshToken = this.createRefreshToken(payload);
     // update user with refresh token
-    // await this.usersService.updateUserToken(refreshToken, _id);
+    await this.usersService.updateUserToken(refreshToken, _id);
 
     // set refresh_token as cookies
-    // response.cookie('refresh_token', refreshToken, {
-    //   httpOnly: true,
-    //   maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRE')) / 1000,
-    // });
+    response.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      maxAge: ms(this.configService.get<string>('JWT_REFRESH_EXPIRE')) / 1000,
+    });
     return {
       user: {
         _id,
@@ -87,6 +90,7 @@ export class AuthService {
         avatar,
       },
       access_token: this.jwtService.sign(payload),
+      refreshToken,
     };
   }
   async getAccount(user: IUser) {
@@ -101,6 +105,14 @@ export class AuthService {
       },
     };
   }
+  createRefreshToken = (payload) => {
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      expiresIn:
+        ms(this.configService.get<string>('JWT_REFRESH_EXPIRE')) / 1000,
+    });
+    return refreshToken;
+  };
   async forgotPassword(forgotPassword: ForgotPassword) {
     const userDB = await this.userModel.findOne({
       email: forgotPassword.email,
