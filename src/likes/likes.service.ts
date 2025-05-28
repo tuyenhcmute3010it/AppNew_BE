@@ -57,14 +57,6 @@ export class LikesService {
 
     filter.user = user._id;
 
-    // Ensure article filter is applied if provided
-    // if (qs.includes('article')) {
-    //   const articleId = new URLSearchParams(qs).get('article');
-    //   if (articleId) {
-    //     filter.article = articleId;
-    //   }
-    // }
-
     let offset = (currentPage - 1) * limit;
     let defaultLimit = limit ? limit : 10;
     const totalItems = (await this.likeModel.find(filter)).length;

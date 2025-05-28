@@ -57,7 +57,7 @@ export class ArticlesController {
     return this.articlesService.findOne(id, user);
   }
 
-  @Put(':id')
+  @Patch(':id')
   @ResponseMessage('update article')
   update(
     @Param('id') id: string,
